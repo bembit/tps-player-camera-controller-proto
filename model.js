@@ -5,7 +5,8 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
 // Third-Person Camera Variables
-const cameraOffset = new THREE.Vector3(0, 4, -6); // Camera position relative to player
+// const cameraOffset = new THREE.Vector3(0, 4, -6); // Camera position relative to player
+const cameraOffset = new THREE.Vector3(0, 6, -4); // Camera position relative to player
 const cameraTargetOffset = new THREE.Vector3(0, 1, 0); // Target position offset (player's head level)
 let rotationAngle = -1.5; // Horizontal rotation around the player
 
@@ -13,7 +14,7 @@ let rotationAngle = -1.5; // Horizontal rotation around the player
 const canvas = document.getElementById('starfield-canvas');
 
 // Create a green grass tile
-const grassGeometry = new THREE.PlaneGeometry(255, 255); // Width and height of the tile
+const grassGeometry = new THREE.PlaneGeometry(64, 64); // Width and height of the tile
 const grassMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 }); // Green color
 const grassTile = new THREE.Mesh(grassGeometry, grassMaterial);
 
@@ -38,10 +39,10 @@ sunlight.shadow.mapSize.width = 2048; // Higher value = sharper shadows (default
 sunlight.shadow.mapSize.height = 2048;
 sunlight.shadow.camera.near = 0.5; // Start of shadow casting
 sunlight.shadow.camera.far = 50; // End of shadow casting
-sunlight.shadow.camera.left = -10; // Adjust bounds to cover scene
-sunlight.shadow.camera.right = 10;
-sunlight.shadow.camera.top = 10;
-sunlight.shadow.camera.bottom = -10;
+sunlight.shadow.camera.left = -32; // Adjust bounds to cover scene
+sunlight.shadow.camera.right = 32;
+sunlight.shadow.camera.top = 32;
+sunlight.shadow.camera.bottom = -32;
 
 // Renderer with the selected canvas
 const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
@@ -57,12 +58,15 @@ const keys = {
     a: false,
     s: false,
     d: false,
+    shift: false,
 };
 document.addEventListener('keydown', (event) => {
     if (event.key in keys) keys[event.key] = true;
+    if (event.key === "Shift") keys.shift = true;
 });
 document.addEventListener('keyup', (event) => {
     if (event.key in keys) keys[event.key] = false;
+    if (event.key === "Shift") keys.shift = false;
 });
 
 let isCanvasActive = false; // Track if the canvas is active
@@ -160,11 +164,15 @@ function updatePlayerMovement() {
         const isMoving = movement.length() > 0;
 
         if (isMoving) {
-            if (currentAnimation !== playerAnimations['run']) {
-                // Transition to running animation
+            // change animation
+            const targetAnimation = keys.shift ? 'run' : 'walk';
+            // change movement speed
+            movementSpeed = keys.shift ? 0.1 : 0.05;
+
+            if (currentAnimation !== playerAnimations[targetAnimation]) {
                 if (currentAnimation) currentAnimation.fadeOut(transitionDuration);
-                playerAnimations['run'].reset().fadeIn(transitionDuration).play();
-                currentAnimation = playerAnimations['run'];
+                playerAnimations[targetAnimation].reset().fadeIn(transitionDuration).play();
+                currentAnimation = playerAnimations[targetAnimation];
             }
 
             // Smoothly rotate player to face the movement direction
@@ -174,6 +182,7 @@ function updatePlayerMovement() {
                 lookDirection
             );
             player.quaternion.slerp(targetQuaternion, 0.1); // Adjust 0.1 for smoother or faster turning
+
         } else {
             if (currentAnimation !== playerAnimations['stand']) {
                 // Transition to standing animation
@@ -199,15 +208,12 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
-
-
-
 // Mouse movement to rotate camera around the player
 document.addEventListener('mousemove', (event) => {
     if (!isCanvasActive) return; // Rotate only when the canvas is active
 
     const sensitivity = 0.003; // Adjust sensitivity
-    rotationAngle -= event.movementX * sensitivity; // Rotate horizontally
+    rotationAngle += event.movementX * sensitivity; // Rotate horizontally
 
     // TODO: Add vertical rotation
     // 1. these needs more math and to reduce horizontal while both are in action.
@@ -215,6 +221,46 @@ document.addEventListener('mousemove', (event) => {
     cameraOffset.y = THREE.MathUtils.clamp(verticalOffset, 2, 8); // Limit vertical range
 });
 
+// when holding right click keep the mouse position at the start of the click
+let mouseDown = false;
+const sensitivity = 0.003;
+
+document.addEventListener('mousedown', (event) => {
+    if (event.button === 2) { // Right-click
+        mouseDown = true;
+        document.body.requestPointerLock();
+    }
+});
+
+document.addEventListener('mouseup', (event) => {
+    if (event.button === 2) { // Right-click
+        mouseDown = false;
+        document.exitPointerLock();
+    }
+});
+
+// Mouse movement to rotate camera around the player
+document.addEventListener('mousemove', (event) => {
+    if (!mouseDown || !document.pointerLockElement) return; // Rotate only when holding right-click
+
+    // Rotate horizontally
+    rotationAngle += event.movementX * sensitivity;
+
+    // Reduce horizontal rotation when moving vertically
+    const horizontalFactor = 1 - Math.abs(event.movementY) * 0.0005; // Reduce X rotation slightly when Y is active
+    rotationAngle *= horizontalFactor; 
+
+    // Adjust vertical offset (clamped)
+    cameraOffset.y = THREE.MathUtils.clamp(
+        cameraOffset.y + event.movementY * sensitivity * 2,
+        2, 8
+    );
+});
+
+// block default browser right click menu
+document.addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+});
 
 // Camera zoom limits
 const minZoom = 2; // Minimum distance from the player
@@ -293,7 +339,6 @@ function loadModel(config) {
                 actions[gltf.animations[4].name].play(); // play the "stand" animation
                 mixers.push(mixer);
                 modelAnimations[config.path] = { mixer, actions };
-                renderAnimations();
             }
         },
         undefined,
