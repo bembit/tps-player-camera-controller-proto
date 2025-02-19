@@ -11,7 +11,7 @@ const cameraTargetOffset = new THREE.Vector3(0, 1, 0); // Target position offset
 let rotationAngle = -1.5; // Horizontal rotation around the player
 
 // Target the canvas element
-const canvas = document.getElementById('starfield-canvas');
+const canvas = document.getElementById('canvas');
 
 // Create a green grass tile
 const grassGeometry = new THREE.PlaneGeometry(64, 64); // Width and height of the tile
