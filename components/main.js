@@ -6,7 +6,6 @@ import { PlayerController } from './PlayerController.js';
 import { ModelLoader } from './ModelLoader.js';
 
 // TODO:
-// 0. Finish comments tonight.
 // 1. Shift + wasd is bugged.
 // 2. Left click drag should rotate always ( not just while standing still).
 // 3. Scroll zoom is still bad.
@@ -42,18 +41,51 @@ class MainGame {
     
     this.cameraController = new CameraController(this.camera, this.inputManager);
     
+    // scale normalization
     this.models = [
       {
-        path: './catwoman.glb',
+        path: './models/catwoman.glb',
         position: { x: 0, y: 0, z: 0 },
         scale: 1,
       },
       {
-        path: './catwoman.glb',
+        path: './models/supergirl.glb',
+        position: { x: 3, y: 0, z: 0 },
+        scale: 0.5,
+      },
+      {
+        path: './models/flash.glb',
+        position: { x: -3, y: 0, z: 0 },
+        scale: 1,
+      },
+    ];
+
+    this.envModels = [
+      {
+        path: './models/horse.glb',
         position: { x: 12, y: 0, z: 12 },
         scale: 1,
-      }
-    ];
+        rotation: { x: 0, y: 1.5, z: 1.5}
+      },
+      {
+        path: './models/horse.glb',
+        position: { x: -12, y: 0, z: -12 },
+        scale: 1,
+        rotation: { x: -1, y: 2, z: 2}
+      },
+      {
+        path: './models/horse.glb',
+        position: { x: -12, y: 0, z: 12 },
+        scale: 1,
+        rotation: { x: -1, y: 2, z: 2}
+      },
+      {
+        path: './models/horse.glb',
+        position: { x: 12, y: 0, z: -12 },
+        scale: 1,
+        rotation: { x: -1, y: 2, z: 2}
+      },
+    ]
     
     this.loadModels();
 
@@ -65,6 +97,17 @@ class MainGame {
     
     this.animate();
   }
+
+  normalizeModelScale(model) {
+    const box = new THREE.Box3().setFromObject(model);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const maxDimension = Math.max(size.x, size.y, size.z);
+    console.log(maxDimension);
+    const scaleFactor = 3.0 / maxDimension;
+    console.log(scaleFactor);
+    model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+}
 
   addTile() {
       // Create a tile to see something. Helps with testing and motion.
@@ -105,6 +148,7 @@ class MainGame {
         config,
         (gltf, model) => {
           this.scene.add(model);
+          this.normalizeModelScale(model);
           
           // Set up animations if they exist.
           let modelAnimations = null;
@@ -134,6 +178,19 @@ class MainGame {
         }
       );
     });
+    // Load the static test models. 
+    this.envModels.forEach((config) => {
+      ModelLoader.loadModel(
+        config,
+        (gltf, model) => {
+          this.normalizeModelScale(model);
+          this.scene.add(model);
+        },
+        (error) => {
+          console.error('Failed to load model:', error);
+        }
+      );
+    })
   }
   
   onWindowResize() {

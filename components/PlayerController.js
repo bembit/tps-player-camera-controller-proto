@@ -83,6 +83,7 @@ export class PlayerController {
           this.currentAnimation = this.modelAnimations.actions[targetAnimation];
         }
         // Rotate player toward the movement direction.
+        // TODO: Only when holding right click !
         const lookDirection = movement.clone().normalize();
         const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(
           new THREE.Vector3(0, 0, 1),
