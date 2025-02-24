@@ -9,6 +9,7 @@ import { ModelLoader } from './ModelLoader.js';
 // 1. Shift + wasd is bugged.
 // 2. Left click drag should rotate always ( not just while standing still).
 // 3. Scroll zoom is still bad.
+  // 3.1. Pointer lock on right click blocks zoom.
 // 4. Jump is kinda bad.
 // 5. Opt.: Input manager v2?
 // 6. Opt.: Sound effects for actions.

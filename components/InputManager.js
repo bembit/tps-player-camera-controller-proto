@@ -47,6 +47,7 @@ export class InputManager {
       document.addEventListener('mousedown', (event) => {
         if (event.button === 2) {
           this.mouseDown = true;
+          // THIS. zoom disabled.
           document.body.requestPointerLock();
         }
       });
