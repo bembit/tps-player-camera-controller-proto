@@ -77,7 +77,7 @@ export class CameraController {
 
         // Pitch (Vertical Orbit) - Adjust the Y-offset based ONLY on mouse Y movement.
         if (mouseDown.right || (mouseDown.left && isCanvasActive)) {
-            this.yOffset -= mouseDeltaY * CAMERA_CONFIG.SENSITIVITY_Y * 2;
+            this.yOffset += mouseDeltaY * CAMERA_CONFIG.SENSITIVITY_Y * 2;
             // Clamp the Y-offset here after mouse movement adjustment.
             this.yOffset = THREE.MathUtils.clamp(
                 this.yOffset,
