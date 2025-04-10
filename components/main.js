@@ -5,14 +5,9 @@ import { CameraController } from './CameraController.js';
 import { PlayerController } from './PlayerController.js';
 import { ModelLoader } from './ModelLoader.js';
 
-// TODO:
-// 1. Shift + wasd is bugged.
-// 2. Left click drag should rotate always ( not just while standing still).
-// 3. Scroll zoom is still bad.
-  // 3.1. Pointer lock on right click blocks zoom.
-// 4. Jump is kinda bad.
-// 5. Opt.: Input manager v2?
-// 6. Opt.: Sound effects for actions.
+//  BUGS
+// 1. Shift + wasd is bugged - while pressing shift to spring the WASD keys do not work and when stopping, the reverse of direction input is stuck, so the character moves / behaves like crazy.
+// 2. Left click drag should rotate around the player always and not rorate movement direction ( not just while standing still) - camera turn on movement most likely
 
 /**
  * MainGame ties together the scene, renderer, controllers, managers, CEOs, and animation loop.
@@ -202,16 +197,18 @@ class MainGame {
   
   animate() {
     requestAnimationFrame(this.animate.bind(this));
-    const delta = this.clock.getDelta();
-    
+    const delta = this.clock.getDelta(); // Get time delta
+
     // Update all animation mixers.
     this.mixers.forEach((mixer) => mixer.update(delta));
-    
-    // Update the player (movement/animations) and camera.
-    if (this.playerController) this.playerController.update();
 
-    this.cameraController.update();
-    
+    // Update the player (movement/animations) and camera.
+    // Pass delta to playerController.update
+    if (this.playerController) this.playerController.update(delta);
+
+    // Camera update might also benefit from delta for smoothing, but let's focus on player first
+    this.cameraController.update(); // Optional: pass delta here too if smoothing needed
+
     this.renderer.render(this.scene, this.camera);
   }
 }
