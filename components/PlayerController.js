@@ -73,10 +73,14 @@ export class PlayerController {
       }
     } else {
       const isMoving = movement.length() > 0;
+      // we need the keys what is pressed, what direction
+      const isSprinting = this.inputManager.keys.ShiftLeft || this.inputManager.keys.ShiftRight;
       if (isMoving) {
         // Switch animations based on key.
-        const targetAnimation = this.inputManager.keys.shift ? 'run' : 'walk';
-        this.movementSpeed = this.inputManager.keys.shift ? 0.1 : 0.05;
+        const targetAnimation = this.inputManager.keys.ShiftLeft ? 'run' : 'walk';
+        // const targetAnimation = this.inputManager.keys.shift ? 'run' : 'walk';
+        // this.movementSpeed = this.inputManager.keys.shift ? 0.1 : 0.05;
+        this.movementSpeed = isSprinting ? 0.1 : 0.05;
         if (this.modelAnimations && this.currentAnimation !== this.modelAnimations.actions[targetAnimation]) {
           if (this.currentAnimation) this.currentAnimation.fadeOut(0.5);
           this.modelAnimations.actions[targetAnimation].reset().fadeIn(0.5).play();

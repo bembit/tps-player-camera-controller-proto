@@ -39,8 +39,15 @@ export class CameraController {
       }
       
       // Update zoom (clamped).
-      this.zoomDistance += zoomDelta;
+      // this.zoomDistance += zoomDelta;
+      // this.zoomDistance = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoomDistance));
+      // Update zoom
+      const zoomSpeed = 0.1;
+      const zoomFactor = 1 + this.inputManager.zoomDelta * zoomSpeed;
+      this.zoomDistance *= zoomFactor;
+      this.cameraOffset.y *= zoomFactor;
       this.zoomDistance = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoomDistance));
+      this.cameraOffset.y = Math.max(2, Math.min(8, this.cameraOffset.y));
       
       // Update the camera's position relative to the player.
       if (this.player) {

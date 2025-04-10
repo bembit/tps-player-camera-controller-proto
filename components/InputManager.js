@@ -6,7 +6,7 @@
 export class InputManager {
     constructor(canvas) {
       this.canvas = canvas;
-      this.keys = { w: false, a: false, s: false, d: false, shift: false };
+      this.keys = { w: false, a: false, s: false, d: false, ShiftLeft: false, ShiftRight: false };
       this.jumpTriggered = false;
       this.mouseDeltaX = 0;
       this.mouseDeltaY = 0;
@@ -21,12 +21,14 @@ export class InputManager {
       // Keyboard events
       document.addEventListener('keydown', (event) => {
         if (event.key in this.keys) this.keys[event.key] = true;
-        if (event.key === 'Shift') this.keys.shift = true;
+        // if (event.key === 'Shift') this.keys.shift = true;
+        if (event.key === 'Shift') this.keys.ShiftLeft = true;
         if (event.key === ' ') this.jumpTriggered = true;
       });
       document.addEventListener('keyup', (event) => {
         if (event.key in this.keys) this.keys[event.key] = false;
-        if (event.key === 'Shift') this.keys.shift = false;
+        // if (event.key === 'Shift') this.keys.shift = false;
+        if (event.key === 'Shift') this.keys.ShiftLeft = false;
         // Leave jumpTriggered until consumed by PlayerController.
       });
       
@@ -59,12 +61,18 @@ export class InputManager {
       });
       
       // Zoom with the mouse wheel.
-      this.canvas.addEventListener('wheel', (event) => {
-        event.preventDefault();
+      // this.canvas.addEventListener('wheel', (event) => {
+      //   event.preventDefault();
+      //   const zoomSpeed = 0.5;
+      //   this.zoomDelta += event.deltaY * 0.01 * zoomSpeed;
+      // });
+      
+      document.addEventListener('wheel', (event) => {
+        // event.preventDefault();
         const zoomSpeed = 0.5;
         this.zoomDelta += event.deltaY * 0.01 * zoomSpeed;
       });
-      
+
       // Prevent default context menu on right-click.
       document.addEventListener('contextmenu', (event) => event.preventDefault());
     }
