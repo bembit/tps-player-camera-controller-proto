@@ -1,127 +1,181 @@
 // InputManager.js
 
+/**
+ * Manages all raw browser input events (keyboard, mouse buttons, mouse movement, wheel).
+ * Stores the current state of keys and mouse actions, making it available to other systems.
+ * It accumulates mouse movement and wheel deltas per frame, which need to be reset externally after consumption.
+ */
 export class InputManager {
+    /**
+     * Initializes the InputManager and binds event listeners.
+     * @param {HTMLCanvasElement} canvas - The canvas element to bind mouse events like click and wheel to.
+     */
     constructor(canvas) {
+        /** @type {HTMLCanvasElement} Reference to the canvas element. */
         this.canvas = canvas;
-        // Use event.code values for keys for better reliability
+
+        /** @type {Object.<string, boolean>} Stores the state of relevant keyboard keys (true if pressed). Uses KeyboardEvent.code for keys. */
         this.keys = {
-            KeyW: false, KeyA: false, KeyS: false, KeyD: false,
-            ShiftLeft: false, ShiftRight: false,
-            Space: false // Use 'Space' for jump key code
+            KeyW: false, KeyA: false, KeyS: false, KeyD: false, // Movement
+            ShiftLeft: false, ShiftRight: false,           // Sprint modifier
+            Space: false                                   // Jump key
         };
-        // Rename jumpTriggered for clarity, or handle directly in PlayerController
-        // For now, let's keep jumpTriggered but associate it with Space keyup
+
+        /** @type {boolean} Flag indicating if the jump action was triggered (typically on key up). Needs to be consumed (set back to false) by the player controller. */
         this.jumpTriggered = false;
+
+        /** @type {number} Accumulated horizontal mouse movement since the last resetMouseDelta() call. */
         this.mouseDeltaX = 0;
+        /** @type {number} Accumulated vertical mouse movement since the last resetMouseDelta() call. */
         this.mouseDeltaY = 0;
+        /** @type {number} Accumulated mouse wheel scroll delta since the last resetMouseDelta() call. Positive=scroll down/away, Negative=scroll up/towards. */
         this.zoomDelta = 0;
-        this.isCanvasActive = false; // Consider renaming? maybe isMouseOverCanvas
-        this.mouseDown = { left: false, middle: false, right: false }; // Track buttons separately
-        this.sensitivity = 0.003;
+
+        /** @type {boolean} Flag indicating if the mouse cursor is currently over the canvas element. */
+        this.isCanvasActive = false;
+        /** @type {Object.<string, boolean>} Stores the state of mouse buttons (true if pressed). */
+        this.mouseDown = { left: false, middle: false, right: false };
+
+        // Sensitivity moved to CameraController as it's primarily camera-related tuning.
+        // this.sensitivity = 0.003;
+
+        // Bind all necessary event listeners.
         this._bindEvents();
     }
 
+    /**
+     * Sets up all the necessary DOM event listeners for keyboard and mouse input.
+     * Private method, called by the constructor.
+     */
     _bindEvents() {
-        // Keyboard events
+        // --- Keyboard Events ---
         document.addEventListener('keydown', (event) => {
-            // Use event.code for reliable key identification
+            // Check if the pressed key (using event.code for layout independence) is one we track.
             if (event.code in this.keys) {
-                this.keys[event.code] = true;
+                this.keys[event.code] = true; // Mark the key as pressed.
             }
-            // Prevent default browser behavior for spacebar scroll
+            // Prevent default browser action for Space bar (scrolling).
             if (event.code === 'Space') {
                  event.preventDefault();
             }
+            // Could add handling for other keys or modifiers here if needed.
         });
+
         document.addEventListener('keyup', (event) => {
+            // Check if the released key is one we track.
             if (event.code in this.keys) {
-                this.keys[event.code] = false;
+                this.keys[event.code] = false; // Mark the key as released.
             }
-            // Trigger jump specifically on Space key up
+            // Specifically trigger the jump action on the 'keyup' of the Space bar.
             if (event.code === 'Space') {
-                this.jumpTriggered = true;
+                this.jumpTriggered = true; // Flag that jump should occur. Consumed by PlayerController.
             }
         });
 
-        // Canvas activation / Mouse focus - Simplified logic might be needed
-        this.canvas.addEventListener('mouseover', () => { this.isCanvasActive = true; }); // Use mouseover/out
+        // --- Mouse Focus Events ---
+        // Track if the mouse is over the canvas. Useful for context-specific actions.
+        this.canvas.addEventListener('mouseover', () => { this.isCanvasActive = true; });
         this.canvas.addEventListener('mouseout', () => { this.isCanvasActive = false; });
 
-        // Mouse movement events – Check for right mouse button down for camera control
+        // --- Mouse Movement Events ---
         document.addEventListener('mousemove', (event) => {
-            // Pointer lock handles movement capture implicitly
-            if (document.pointerLockElement === document.body || this.mouseDown.left) { // Rotate camera if right mouse down OR left mouse down on canvas
+            // Accumulate mouse movement deltas (event.movementX/Y).
+            // Accumulate only if:
+            // 1. Pointer lock is active (ideal for camera control).
+            // 2. OR a mouse button is pressed *while* the cursor is over the canvas (for drag interactions).
+             if (document.pointerLockElement === document.body || (this.isCanvasActive && (this.mouseDown.left || this.mouseDown.right || this.mouseDown.middle)) ) {
                  this.mouseDeltaX += event.movementX;
                  this.mouseDeltaY += event.movementY;
-            }
-            // If just hovering over canvas without click, maybe don't rotate? Adjust as needed.
-            // else if (this.isCanvasActive && this.mouseDown.left) { // Example: Only rotate on left drag over canvas
-            //     this.mouseDeltaX += event.movementX;
-            //     this.mouseDeltaY += event.movementY;
-            // }
-        });
-
-        // Mouse button events
-        document.addEventListener('mousedown', (event) => {
-             if (event.target === this.canvas) { // Only register clicks on the canvas
-                if (event.button === 0) this.mouseDown.left = true;
-                if (event.button === 1) this.mouseDown.middle = true; // Middle mouse often needs preventDefault
-                if (event.button === 2) {
-                    this.mouseDown.right = true;
-                    document.body.requestPointerLock(); // Lock pointer on right click
-                }
              }
         });
-        document.addEventListener('mouseup', (event) => {
-            // Release regardless of target for robustness
-            if (event.button === 0) this.mouseDown.left = false;
-            if (event.button === 1) this.mouseDown.middle = false;
-            if (event.button === 2) {
-                this.mouseDown.right = false;
-                if (document.pointerLockElement === document.body) {
-                    document.exitPointerLock(); // Unlock pointer on right mouse up
-                }
-            }
+
+        // --- Mouse Button Events ---
+        // Listen for mouse button presses.
+        document.addEventListener('mousedown', (event) => {
+             // Only process clicks that *originate* on the canvas element.
+             if (event.target === this.canvas) {
+                 // Left mouse button (button code 0)
+                 if (event.button === 0) this.mouseDown.left = true;
+                 // Middle mouse button (button code 1)
+                 if (event.button === 1) {
+                    this.mouseDown.middle = true;
+                    event.preventDefault(); // Prevent default middle-click behavior (e.g., autoscroll).
+                 }
+                 // Right mouse button (button code 2)
+                 if (event.button === 2) {
+                     this.mouseDown.right = true;
+                     // Request browser pointer lock when right button is pressed on canvas (for camera control).
+                     document.body.requestPointerLock().catch(err => console.log("Pointer lock request failed. User interaction likely required.", err));
+                 }
+             }
         });
+        // Listen for mouse button releases.
+        document.addEventListener('mouseup', (event) => {
+             // Release button state regardless of where the mouseup happens (robustness).
+             if (event.button === 0) this.mouseDown.left = false;
+             if (event.button === 1) this.mouseDown.middle = false;
+             if (event.button === 2) {
+                 this.mouseDown.right = false;
+                 // Exit pointer lock if it's currently active and was likely initiated by us.
+                 if (document.pointerLockElement === document.body) {
+                     document.exitPointerLock();
+                 }
+             }
+         });
 
-        // Zoom with the mouse wheel.
-        // this.canvas.addEventListener('wheel', (event) => { // Attach to canvas to only zoom when mouse is over it
-        //     event.preventDefault(); // Prevent page scroll
-        //     const zoomSpeed = 0.5;
-        //     // Normalize deltaY (browsers report differently)
-        //     const delta = Math.sign(event.deltaY);
-        //     this.zoomDelta += delta * zoomSpeed; // Simpler accumulation
-        // }, { passive: false }); // Need passive: false to allow preventDefault
+        // --- Mouse Wheel Event ---
+        // Listen for wheel events specifically on the canvas to control zoom.
+        document.addEventListener('wheel', (event) => {
+            event.preventDefault(); // Prevent default page scrolling action.
+            const scrollAmount = event.deltaY; // Get scroll delta (positive=down, negative=up).
+            // Normalize deltaY for consistency across browsers/platforms (optional).
+            const normalizedDelta = Math.sign(scrollAmount) * Math.min(Math.abs(scrollAmount), 30); // Clamp magnitude.
+            // Accumulate the normalized delta, scaled down for sensitivity control.
+            this.zoomDelta += normalizedDelta * 0.01; // Scaling factor might become a constant.
+        }, { passive: false }); // passive: false is required to allow preventDefault().
 
-        // // Prevent default context menu on right-click.
-        // this.canvas.addEventListener('contextmenu', (event) => event.preventDefault()); // Only prevent on canvas
+        // --- Context Menu Event ---
+        // Prevent the default browser context menu from appearing on right-click over the canvas.
+        this.canvas.addEventListener('contextmenu', (event) => event.preventDefault());
 
-        document.addEventListener('wheel', (event) => { // Attach to canvas to only zoom when mouse is over it
-            // event.preventDefault(); // Prevent page scroll
-            const zoomSpeed = 0.5;
-            // Normalize deltaY (browsers report differently)
-            const delta = Math.sign(event.deltaY);
-            this.zoomDelta += delta * zoomSpeed; // Simpler accumulation
-        }, { passive: false }); // Need passive: false to allow preventDefault
-
-        // Prevent default context menu on right-click.
-        this.canvas.addEventListener('contextmenu', (event) => event.preventDefault()); // Only prevent on canvas
+        // --- Pointer Lock Event ---
+        // Handle changes in pointer lock state (e.g., user pressing Esc).
+        document.addEventListener('pointerlockchange', () => {
+            if (document.pointerLockElement !== document.body) {
+                // Pointer lock was lost. If the right mouse button was logically 'down'
+                // for camera control, we might need to reset its state here, depending on desired behavior.
+                // Example: Ensure right mouse isn't stuck 'down' if Esc is pressed.
+                // if (this.mouseDown.right) {
+                //     this.mouseDown.right = false;
+                // }
+            }
+        }, false);
     }
 
-    // Reset deltas at the end of the frame (usually called by CameraController)
+    /**
+     * Resets the accumulated mouse movement and zoom deltas.
+     * This MUST be called each frame after the deltas have been processed (usually by CameraController)
+     * to prepare for accumulating the next frame's input.
+     */
     resetMouseDelta() {
         this.mouseDeltaX = 0;
         this.mouseDeltaY = 0;
         this.zoomDelta = 0;
-        // We reset jumpTriggered AFTER it's consumed in PlayerController.update
+        // Note: jumpTriggered is NOT reset here; it's reset by PlayerController after it's consumed.
     }
 
-    // Helper to check if moving
+    /**
+     * Helper method to quickly check if any movement key (WASD) is currently pressed.
+     * @returns {boolean} True if W, A, S, or D is pressed.
+     */
     isMoving() {
         return this.keys.KeyW || this.keys.KeyA || this.keys.KeyS || this.keys.KeyD;
     }
 
-    // Helper to check if sprinting
+    /**
+     * Helper method to quickly check if a sprint modifier key (Shift) is currently pressed.
+     * @returns {boolean} True if Left Shift or Right Shift is pressed.
+     */
     isSprinting() {
         return this.keys.ShiftLeft || this.keys.ShiftRight;
     }
